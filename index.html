@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>設備試做管理系統 ver.01</title>
+    <title>設備試做管理系統 ver.02</title>
     
     <!-- 引入 Tailwind CSS 進行專業排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -47,7 +47,7 @@
         // === React Hooks ===
         const { useState, useMemo, useEffect } = React;
 
-        // === 圖示包裝器 (取代原本的 Lucide Icons) ===
+        // === 圖示包裝器 ===
         const Icon = ({ name, size=24, className="" }) => <i className={`ph ${name} ${className}`} style={{ fontSize: size }}></i>;
         const Activity = p => <Icon name="ph-activity" {...p} />;
         const Layers = p => <Icon name="ph-stack" {...p} />;
@@ -148,7 +148,7 @@
                     } else {
                     docRef.set({ cases: [], salesTargets: defaultSalesTargets, adminPassword: '8888' });
                     }
-                    setCloudStatus('🟢 雲端已同步 (ver.01)');
+                    setCloudStatus('🟢 雲端已同步 (ver.02)');
                     setIsLoading(false);
                 }, (err) => {
                     console.error("Listen Error:", err);
@@ -172,7 +172,7 @@
                 try {
                 const docRef = db.collection('salesSystem').doc('mainData');
                 await docRef.set(newData, { merge: true });
-                setCloudStatus('🟢 雲端已同步 (ver.01)');
+                setCloudStatus('🟢 雲端已同步 (ver.02)');
                 return true;
                 } catch (err) {
                 console.error("Write Error:", err);
@@ -229,37 +229,49 @@
                 }
             };
 
+            // ⚠️ 強化版：手動防呆驗證，取代 HTML5 required
             const handleAddCase = async (e) => {
                 e.preventDefault();
-                const fd = new FormData(e.target);
-                const date = fd.get('date');
-                const month = date ? parseInt(date.split('-')[1], 10) : new Date().getMonth() + 1;
+                try {
+                    const fd = new FormData(e.target);
+                    const sales = fd.get('sales');
+                    const client = fd.get('client')?.trim();
+                    const equipment = fd.get('equipment')?.trim();
+                    const date = fd.get('date');
+                    const status = fd.get('status');
 
-                const newCase = {
-                id: cases.length > 0 ? Math.max(...cases.map(c => c.id)) + 1 : 1,
-                sales: fd.get('sales'),
-                client: fd.get('client'),
-                equipment: fd.get('equipment'),
-                date: date,
-                status: fd.get('status'),
-                result: fd.get('result') || '',
-                month: month,
-                createAt: Date.now()
-                };
+                    // 手動跳出明確提示，避免手機瀏覽器默默阻擋
+                    if (!sales) return alert('⚠️ 請選擇負責業務！');
+                    if (!client) return alert('⚠️ 請輸入客戶名稱！');
+                    if (!date) return alert('⚠️ 請選擇試做日期！');
+                    if (!equipment) return alert('⚠️ 請輸入設備/產品型號！');
 
-                const updatedCases = [...cases, newCase];
-                const isSuccess = await syncToCloud({ cases: updatedCases });
-                
-                if (isSuccess) {
-                e.target.reset();
-                alert('✨ 案件已成功寫入雲端系統！');
-                if (appMode === 'manager') setActiveTab('data');
+                    const month = parseInt(date.split('-')[1], 10) || new Date().getMonth() + 1;
+
+                    const newCase = {
+                        id: cases.length > 0 ? Math.max(...cases.map(c => c.id)) + 1 : 1,
+                        sales, client, equipment, date, status,
+                        result: fd.get('result') || '',
+                        month,
+                        createAt: Date.now()
+                    };
+
+                    const updatedCases = [...cases, newCase];
+                    const isSuccess = await syncToCloud({ cases: updatedCases });
+                    
+                    if (isSuccess) {
+                        e.target.reset();
+                        alert('✨ 案件已成功寫入雲端系統！');
+                        if (appMode === 'manager') setActiveTab('data');
+                    }
+                } catch (error) {
+                    alert('⚠️ 系統發生錯誤：' + error.message);
                 }
             };
 
             const handleSaveNewPassword = async () => {
                 const p = newPasswordInput.trim();
-                if (!p) return;
+                if (!p) return alert('⚠️ 密碼不能為空白！');
                 const isSuccess = await syncToCloud({ adminPassword: p });
                 if (isSuccess) {
                 setShowSettingsModal(false);
@@ -271,8 +283,8 @@
 
             const handleAddSales = async () => {
                 const name = newSalesName.trim().toUpperCase();
-                if (!name) return;
-                if (salesTargets[name]) return alert('此業務已存在！');
+                if (!name) return alert('⚠️ 請輸入業務姓名！');
+                if (salesTargets[name]) return alert('⚠️ 此業務已存在！');
                 const newTargets = { ...salesTargets, [name]: parseInt(newSalesTarget, 10) || 1 };
                 
                 const isSuccess = await syncToCloud({ salesTargets: newTargets });
@@ -330,7 +342,7 @@
                         <Wifi className="text-emerald-400 animate-pulse" size={16} />
                         <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.01</span></h1>
+                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.02</span></h1>
                     <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management Portal</p>
                     </div>
 
@@ -361,7 +373,7 @@
                         className="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-white text-center text-4xl tracking-[0.5em] outline-none focus:border-emerald-500 transition-all"
                     />
                     {loginError && <p className="text-red-400 font-bold text-sm">識別碼不正確</p>}
-                    <button className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                    <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
                         驗證登入 <ArrowRight />
                     </button>
                     <button type="button" onClick={() => setAppMode('landing')} className="text-slate-500 hover:text-white">返回首頁</button>
@@ -379,7 +391,7 @@
                     <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
                     <ShieldCheck className="text-emerald-400" size={28}/>
                     <div>
-                        <h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.01</span></h1>
+                        <h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.02</span></h1>
                     </div>
                     </div>
                     <div className="px-4 space-y-2 flex-1">
@@ -459,7 +471,7 @@
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                             <div className="space-y-3">
                                 <label className="text-sm font-black text-slate-700">負責業務 *</label>
-                                <select name="sales" required className="professional-select">
+                                <select name="sales" className="professional-select">
                                 <option value="">選擇人員</option>
                                 {Object.keys(salesTargets).map(n => <option key={n} value={n}>{n}</option>)}
                                 </select>
@@ -474,22 +486,22 @@
                             </div>
                             <div className="space-y-3">
                                 <label className="text-sm font-black text-slate-700">客戶名稱 *</label>
-                                <input name="client" required className="professional-input" placeholder="公司名稱" />
+                                <input name="client" className="professional-input" placeholder="公司名稱" />
                             </div>
                             <div className="space-y-3">
                                 <label className="text-sm font-black text-slate-700">日期 *</label>
-                                <input name="date" type="date" required className="professional-input" />
+                                <input name="date" type="date" className="professional-input" />
                             </div>
                             <div className="md:col-span-2 space-y-3">
                                 <label className="text-sm font-black text-slate-700">設備/產品型號 *</label>
-                                <input name="equipment" required className="professional-input" placeholder="例如: RV-ET9484E, WS25" />
+                                <input name="equipment" className="professional-input" placeholder="例如: RV-ET9484E, WS25" />
                             </div>
                             <div className="md:col-span-2 space-y-3">
                                 <label className="text-sm font-black text-slate-700">結果備註</label>
                                 <textarea name="result" rows="4" className="professional-input resize-none" placeholder="輸入詳細進度..." />
                             </div>
                             </div>
-                            <button className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-3xl font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3">
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-3xl font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer">
                             寫入雲端資料庫 <Database />
                             </button>
                         </form>
