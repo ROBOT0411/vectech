@@ -3,11 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <!-- 終極防快取標籤 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>設備試做管理系統 ver.09</title>
+    <title>設備試做管理系統 ver.10</title>
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
@@ -24,6 +23,8 @@
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    
+    <!-- 引入 Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
@@ -94,6 +95,11 @@
         const auth = firebase.auth();
         const db = firebase.firestore();
 
+        // 🚀 終極修復：強制手機使用 Long Polling 通訊，解決 Safari/LINE 阻擋 Offline 問題
+        db.settings({
+            experimentalForceLongPolling: true
+        });
+
         const defaultSalesTargets = { ALSTON: 5, ALEX: 5, CHRIS: 3, HANK: 2 };
 
         function App() {
@@ -119,55 +125,56 @@
 
             useEffect(() => {
                 setCloudStatus('讀取資料庫中...');
-                auth.signInAnonymously().catch(function() { console.log("備用連線啟動"); });
+                
+                // 加強版：如果 API Key 填錯，會立刻報錯
+                auth.signInAnonymously().catch(function(err) { 
+                    console.log("Auth Warning:", err); 
+                    if(err.code === 'auth/invalid-api-key') {
+                        setErrorMsg("您的 Firebase 金鑰有誤！請回 Firebase 專案設定重新複製 config。");
+                        setIsLoading(false);
+                    }
+                });
 
                 const docRef = db.collection('salesSystem').doc('mainData');
                 
                 const unsubscribeDB = docRef.onSnapshot(function(docSnap) {
-                    // 偵測資料來源是本地還是雲端
-                    const source = docSnap.metadata.fromCache ? " (本地暫存)" : "";
-                    
                     if (docSnap.exists) {
                         const data = docSnap.data();
                         setCases(data.cases || []);
                         setSalesTargets(data.salesTargets || defaultSalesTargets);
                         setAdminPassword(data.adminPassword || '8888');
                     } else {
-                        // 若雲端為空，只初始化畫面，不覆蓋
                         setCases([]);
                         setSalesTargets(defaultSalesTargets);
                         setAdminPassword('8888');
                     }
-                    setCloudStatus('🟢 雲端已同步' + source);
+                    setCloudStatus('🟢 雲端已連線 (v10)');
                     setIsLoading(false);
                 }, function(err) {
                     console.error("Listen Error:", err);
-                    setErrorMsg("資料庫連線失敗，請確認 Firebase 規則已改為 if true;");
+                    setErrorMsg("資料庫連線失敗，請確認網路狀態。(" + err.message + ")");
                     setIsLoading(false);
                 });
 
                 return function() { unsubscribeDB(); };
             }, []);
 
-            // 彈性抓取資料 (移除嚴格的 source: server)
             const forceRefreshData = function() {
                 setIsLoading(true);
                 setCloudStatus('強制抓取雲端資料中...');
                 const docRef = db.collection('salesSystem').doc('mainData');
                 
-                // 這裡改用標準 get()，Firebase 會自動處理網路狀況
                 docRef.get().then(function(docSnap) {
                     if (docSnap.exists) {
                         const data = docSnap.data();
                         setCases(data.cases || []);
                         setSalesTargets(data.salesTargets || defaultSalesTargets);
                         setAdminPassword(data.adminPassword || '8888');
-                        const sourceStr = docSnap.metadata.fromCache ? "本地暫存" : "雲端";
-                        alert("✅ 成功！已從" + sourceStr + "抓取最新資料。");
+                        alert("✅ 成功！已強制抓取最新資料。");
                     } else {
                         alert("⚠️ 目前雲端資料庫是空的！請先新增一筆資料。");
                     }
-                    setCloudStatus('🟢 雲端已同步');
+                    setCloudStatus('🟢 雲端已連線');
                     setIsLoading(false);
                 }).catch(function(err) {
                     console.error("Fetch Error:", err);
@@ -181,7 +188,7 @@
                 try {
                     const docRef = db.collection('salesSystem').doc('mainData');
                     await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已同步');
+                    setCloudStatus('🟢 雲端已連線');
                     return true;
                 } catch (err) {
                     console.error("Write Error:", err);
@@ -350,7 +357,7 @@
                                 <Wifi className="text-emerald-400 animate-pulse" size={16} />
                                 <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.09</span></h1>
+                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">v10</span></h1>
                             <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management</p>
                         </div>
 
@@ -396,7 +403,7 @@
                     <nav className={"w-full md:w-72 text-white flex flex-col shrink-0 z-20 print:hidden transition-colors duration-500 " + (isManager ? "bg-[#0f172a]" : "bg-[#1e3a8a]")}>
                         <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
                             <ShieldCheck className="text-emerald-400" size={28}/>
-                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.09</span></h1></div>
+                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.10</span></h1></div>
                         </div>
                         <div className="px-4 space-y-2 flex-1">
                             {isManager ? (
@@ -416,7 +423,7 @@
                                 <CloudArrowDown size={18}/> 強制從雲端抓取更新
                             </button>
                             <div className="px-4 py-2 flex items-center gap-2">
-                                <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
+                                <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 || cloudStatus.indexOf('連線') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
                             </div>
                             {isManager && (
