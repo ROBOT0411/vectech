@@ -3,7 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>設備試做管理系統 ver.03</title>
+    
+    <!-- === 強制防快取標籤 (確保每次打開都是最新版) === -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <title>設備試做管理系統 ver.04</title>
     
     <!-- 引入 Tailwind CSS 進行專業排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -137,7 +143,7 @@
                     } else {
                         docRef.set({ cases: [], salesTargets: defaultSalesTargets, adminPassword: '8888' });
                     }
-                    setCloudStatus('🟢 雲端已同步 (ver.03)');
+                    setCloudStatus('🟢 雲端已同步 (ver.04)');
                     setIsLoading(false);
                 }, (err) => {
                     console.error("Listen Error:", err);
@@ -154,7 +160,7 @@
                 try {
                     const docRef = db.collection('salesSystem').doc('mainData');
                     await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已同步 (ver.03)');
+                    setCloudStatus('🟢 雲端已同步 (ver.04)');
                     return true;
                 } catch (err) {
                     console.error("Write Error:", err);
@@ -323,7 +329,7 @@
                         <Wifi className="text-emerald-400 animate-pulse" size={16} />
                         <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.03</span></h1>
+                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.04</span></h1>
                     <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management Portal</p>
                     </div>
 
@@ -369,50 +375,4 @@
                 <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
                 {/* 側邊欄 */}
                 <nav className={`w-full md:w-72 text-white flex flex-col shrink-0 z-20 ${isManager ? 'bg-[#0f172a]' : 'bg-[#1e3a8a]'} transition-colors duration-500 print:hidden`}>
-                    <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
-                    <ShieldCheck className="text-emerald-400" size={28}/>
-                    <div>
-                        <h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.03</span></h1>
-                    </div>
-                    </div>
-                    <div className="px-4 space-y-2 flex-1">
-                    {isManager ? (
-                        <>
-                        <SidebarItem active={activeTab === 'dashboard'} icon={<Home/>} label="數據總覽" onClick={() => setActiveTab('dashboard')} />
-                        <SidebarItem active={activeTab === 'monthly_kpi'} icon={<BarChart3/>} label="當月 KPI 分析" onClick={() => setActiveTab('monthly_kpi')} />
-                        <SidebarItem active={activeTab === 'annual_kpi'} icon={<TrendingUp/>} label="年度達標分析" onClick={() => setActiveTab('annual_kpi')} />
-                        <SidebarItem active={activeTab === 'data'} icon={<TableIcon/>} label="案件總表匯出" onClick={() => setActiveTab('data')} />
-                        <SidebarItem active={activeTab === 'form'} icon={<FilePlus/>} label="新增/補登案件" onClick={() => setActiveTab('form')} />
-                        </>
-                    ) : (
-                        <SidebarItem active={true} icon={<FilePlus/>} label="新增試做案" onClick={() => setActiveTab('form')} />
-                    )}
-                    </div>
-                    <div className="p-4 mt-auto border-t border-white/5 space-y-2">
-                    <div className="px-4 py-2 flex items-center gap-2">
-                        <span className={`w-2 h-2 rounded-full animate-pulse ${cloudStatus.includes('同步') ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
-                    </div>
-                    {isManager && (
-                        <button onClick={() => setShowSettingsModal(true)} className="w-full flex items-center gap-3 p-4 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white font-bold text-sm">
-                        <Settings size={18}/> 系統安全設定
-                        </button>
-                    )}
-                    <button onClick={() => {setAppMode('landing'); setPasswordInput('');}} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all font-bold text-sm">
-                        <LogOut size={18}/> 登出
-                    </button>
-                    </div>
-                </nav>
-
-                {/* 主內容區 */}
-                <main className="flex-1 overflow-y-auto p-6 md:p-12 print:p-0 print:bg-white text-slate-800">
-                    
-                    {/* 管理看板 */}
-                    {isManager && activeTab === 'dashboard' && (
-                    <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-right-8">
-                        <header className="mb-10">
-                        <h2 className="text-4xl font-black text-slate-900 mb-2">管理中心</h2>
-                        <p className="text-slate-500 font-medium">全公司案件分佈與即時數據分析</p>
-                        </header>
-                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
-                        <StatBox label="總量" value={stats
+                    <div className="p-8
