@@ -3,10 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <!-- 終極防快取標籤 -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>設備試做管理系統 ver.07</title>
+    <title>設備試做管理系統 ver.08</title>
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
@@ -77,6 +78,7 @@
         const UserPlus = p => <Icon name="ph-user-plus" {...p} />;
         const Printer = p => <Icon name="ph-printer" {...p} />;
         const KeyRound = p => <Icon name="ph-key" {...p} />;
+        const CloudArrowDown = p => <Icon name="ph-cloud-arrow-down" {...p} />;
 
         const firebaseConfig = {
             apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
@@ -128,9 +130,12 @@
                         setSalesTargets(data.salesTargets || defaultSalesTargets);
                         setAdminPassword(data.adminPassword || '8888');
                     } else {
-                        docRef.set({ cases: [], salesTargets: defaultSalesTargets, adminPassword: '8888' });
+                        // 修正空白覆蓋蟲：如果雲端沒資料，只設定本地畫面，絕對不主動寫入空白！
+                        setCases([]);
+                        setSalesTargets(defaultSalesTargets);
+                        setAdminPassword('8888');
                     }
-                    setCloudStatus('🟢 雲端已同步 (ver.07)');
+                    setCloudStatus('🟢 雲端已同步 (ver.08)');
                     setIsLoading(false);
                 }, function(err) {
                     console.error("Listen Error:", err);
@@ -141,12 +146,36 @@
                 return function() { unsubscribeDB(); };
             }, []);
 
+            // 強制從伺服器抓取資料 (解決手機沒更新問題)
+            const forceRefreshData = function() {
+                setIsLoading(true);
+                setCloudStatus('強制抓取雲端資料中...');
+                const docRef = db.collection('salesSystem').doc('mainData');
+                docRef.get({ source: 'server' }).then(function(docSnap) {
+                    if (docSnap.exists) {
+                        const data = docSnap.data();
+                        setCases(data.cases || []);
+                        setSalesTargets(data.salesTargets || defaultSalesTargets);
+                        setAdminPassword(data.adminPassword || '8888');
+                        alert("✅ 成功！已強制從雲端抓取最新資料。");
+                    } else {
+                        alert("⚠️ 目前雲端資料庫是空的！請先新增一筆資料。");
+                    }
+                    setCloudStatus('🟢 雲端已同步 (ver.08)');
+                    setIsLoading(false);
+                }).catch(function(err) {
+                    console.error("Fetch Error:", err);
+                    alert("❌ 抓取失敗：" + err.message);
+                    setIsLoading(false);
+                });
+            };
+
             const syncToCloud = async function(newData) {
                 setCloudStatus('⏳ 寫入中...');
                 try {
                     const docRef = db.collection('salesSystem').doc('mainData');
                     await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已同步 (ver.07)');
+                    setCloudStatus('🟢 雲端已同步 (ver.08)');
                     return true;
                 } catch (err) {
                     console.error("Write Error:", err);
@@ -315,7 +344,7 @@
                                 <Wifi className="text-emerald-400 animate-pulse" size={16} />
                                 <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.07</span></h1>
+                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.08</span></h1>
                             <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management</p>
                         </div>
 
@@ -361,7 +390,7 @@
                     <nav className={"w-full md:w-72 text-white flex flex-col shrink-0 z-20 print:hidden transition-colors duration-500 " + (isManager ? "bg-[#0f172a]" : "bg-[#1e3a8a]")}>
                         <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
                             <ShieldCheck className="text-emerald-400" size={28}/>
-                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.07</span></h1></div>
+                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.08</span></h1></div>
                         </div>
                         <div className="px-4 space-y-2 flex-1">
                             {isManager ? (
@@ -377,6 +406,9 @@
                             )}
                         </div>
                         <div className="p-4 mt-auto border-t border-white/5 space-y-2">
+                            <button onClick={forceRefreshData} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all font-bold text-sm mb-4 border border-blue-500/30 shadow-lg">
+                                <CloudArrowDown size={18}/> 強制從雲端抓取更新
+                            </button>
                             <div className="px-4 py-2 flex items-center gap-2">
                                 <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
