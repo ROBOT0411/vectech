@@ -6,27 +6,48 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>設備試做管理系統 ver.11</title>
+    <title>設備試做管理系統 ver.14</title>
     
     <script>
-        window.onerror = function(message, source, lineno, colno, error) {
-            document.body.innerHTML = '<div style="background:#450a0a; color:#fca5a5; padding:30px; text-align:center; font-family:sans-serif; height:100vh; display:flex; flex-direction:column; justify-content:center;">' +
-                '<h2 style="font-size:24px; margin-bottom:15px; font-weight:bold;">⚠️ 系統啟動失敗</h2>' +
-                '<p style="margin-bottom:10px; line-height:1.5; font-family:monospace;">' + message + '</p>' +
-                '<p style="font-size:12px; opacity:0.7;">請確認記事本存檔時，編碼是否有選擇「UTF-8」。</p>' +
-            '</div>';
+        // 防當機保護網
+        window.onerror = function(message) {
+            document.body.innerHTML = '<div style="background:#450a0a; color:#fca5a5; padding:30px; text-align:center; height:100vh; display:flex; flex-direction:column; justify-content:center;"><h2>⚠️ 系統啟動失敗</h2><p>' + message + '</p><p>請確認存檔時是否選擇 UTF-8 編碼。</p></div>';
             return true;
         };
     </script>
 
+    <!-- 資源庫載入 -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
+
+    <!-- 🚀 強制綁定 vectech 資料庫模組 -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-app.js";
+        import { getFirestore, collection, doc, setDoc, onSnapshot, addDoc, getDocs, writeBatch, query, orderBy } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/10.11.1/firebase-auth.js";
+
+        // 您的原始專案金鑰
+        const firebaseConfig = {
+            apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
+            authDomain: "robot-ai-d531d.firebaseapp.com",
+            projectId: "robot-ai-d531d",
+            storageBucket: "robot-ai-d531d.firebasestorage.app",
+            messagingSenderId: "499127775198",
+            appId: "1:499127775198:web:da8ef20a9a759dc767f74f"
+        };
+        
+        const app = initializeApp(firebaseConfig);
+        // 🎯 致命關鍵修復：繞過 (default)，強制連線到名為 "vectech" 的資料庫！
+        window.db = getFirestore(app, "vectech");
+        window.auth = getAuth(app);
+        window.fs = { collection, doc, setDoc, onSnapshot, addDoc, getDocs, writeBatch, query, orderBy, signInAnonymously };
+        
+        // 啟動 React
+        window.firebaseReady = true;
+    </script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
@@ -36,24 +57,18 @@
         .professional-select { width: 100%; padding: 1.25rem; background: #f8fafc; border: 2px solid #f1f5f9; border-radius: 1.5rem; outline: none; font-weight: 700; cursor: pointer; }
         .hide-scrollbar::-webkit-scrollbar { display: none; } 
         .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        @media print {
-           @page { margin: 1cm; size: landscape; }
-           body * { visibility: hidden; }
-           main, main * { visibility: visible; }
-           main { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; }
-           .print\:hidden { display: none !important; }
-        }
+        @media print { @page { margin: 1cm; size: landscape; } body * { visibility: hidden; } main, main * { visibility: visible; } main { position: absolute; left: 0; top: 0; width: 100%; padding: 0 !important; } .print\:hidden { display: none !important; } }
     </style>
 </head>
 <body>
     <div id="root"></div>
 
+    <!-- React 核心應用程式 -->
     <script type="text/babel" data-presets="react,env">
         const { useState, useMemo, useEffect } = React;
 
         const Icon = ({ name, size=24, className="" }) => <i className={"ph " + name + " " + className} style={{ fontSize: size }}></i>;
         const Activity = p => <Icon name="ph-activity" {...p} />;
-        const Layers = p => <Icon name="ph-stack" {...p} />;
         const UserCircle = p => <Icon name="ph-user-circle" {...p} />;
         const Briefcase = p => <Icon name="ph-briefcase" {...p} />;
         const Lock = p => <Icon name="ph-lock" {...p} />;
@@ -69,30 +84,12 @@
         const Database = p => <Icon name="ph-database" {...p} />;
         const Wifi = p => <Icon name="ph-wifi-high" {...p} />;
         const CheckCircle = p => <Icon name="ph-check-circle" {...p} />;
-        const CalendarDays = p => <Icon name="ph-calendar-blank" {...p} />;
         const Check = p => <Icon name="ph-check" {...p} />;
         const FileSpreadsheet = p => <Icon name="ph-file-csv" {...p} />;
         const Trash2 = p => <Icon name="ph-trash" {...p} />;
         const AlertTriangle = p => <Icon name="ph-warning" {...p} />;
         const UserPlus = p => <Icon name="ph-user-plus" {...p} />;
         const Printer = p => <Icon name="ph-printer" {...p} />;
-        const KeyRound = p => <Icon name="ph-key" {...p} />;
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
-            authDomain: "robot-ai-d531d.firebaseapp.com",
-            projectId: "robot-ai-d531d",
-            storageBucket: "robot-ai-d531d.firebasestorage.app",
-            messagingSenderId: "499127775198",
-            appId: "1:499127775198:web:da8ef20a9a759dc767f74f"
-        };
-        
-        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // 確保手機網路不穩時也能穩定連線
-        db.settings({ experimentalForceLongPolling: true });
 
         const defaultSalesTargets = { ALSTON: 5, ALEX: 5, CHRIS: 3, HANK: 2 };
 
@@ -101,7 +98,7 @@
             const [activeTab, setActiveTab] = useState('dashboard');
             const [isLoading, setIsLoading] = useState(true);
             const [errorMsg, setErrorMsg] = useState('');
-            const [cloudStatus, setCloudStatus] = useState('連線中...');
+            const [cloudStatus, setCloudStatus] = useState('系統載入中...');
 
             const [cases, setCases] = useState([]);
             const [salesTargets, setSalesTargets] = useState(defaultSalesTargets);
@@ -117,49 +114,57 @@
             const [exportMonth, setExportMonth] = useState('all');
             const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
 
-            // 🚀 v11 企業級架構：分開監聽，獨立卡片設計
             useEffect(() => {
-                setCloudStatus('讀取資料庫中...');
-                
-                // 1. 監聽所有的獨立案件
-                const unsubscribeCases = db.collection('vectech_cases')
-                    .orderBy('createAt', 'asc')
-                    .onSnapshot(function(snap) {
+                // 等待 Firebase 模組載入完成
+                const checkInit = setInterval(() => {
+                    if (window.firebaseReady) {
+                        clearInterval(checkInit);
+                        startFirebase();
+                    }
+                }, 50);
+
+                let unsubCases, unsubConfig;
+
+                function startFirebase() {
+                    setCloudStatus('讀取 vectech 資料庫中...');
+                    const { db, auth, fs } = window;
+                    
+                    fs.signInAnonymously(auth).catch(function() { console.log('備用連線'); });
+
+                    // 1. 監聽案件清單 (依建立時間排序)
+                    const q = fs.query(fs.collection(db, 'vectech_cases'), fs.orderBy('createAt', 'asc'));
+                    unsubCases = fs.onSnapshot(q, function(snap) {
                         const loadedCases = [];
-                        snap.forEach(function(doc) {
-                            loadedCases.push({ docId: doc.id, ...doc.data() });
-                        });
+                        snap.forEach(function(d) { loadedCases.push(Object.assign({ docId: d.id }, d.data())); });
                         setCases(loadedCases);
-                        setCloudStatus('🟢 雲端已同步 (v11)');
+                        setCloudStatus('🟢 雲端已同步 (v14)');
                         setIsLoading(false);
                     }, function(err) {
-                        console.error("Cases Listen Error:", err);
-                        setErrorMsg("資料庫存取被拒絕！請確認 Firebase 規則已改為 if true;");
+                        console.error("Listen Error:", err);
+                        setErrorMsg("存取被拒絕！請確認您已點擊『安全性』並將規則改為 if true;");
                         setIsLoading(false);
                     });
 
-                // 2. 監聽系統設定檔 (密碼、KPI目標)
-                const unsubscribeConfig = db.collection('vectech_config').doc('main')
-                    .onSnapshot(function(docSnap) {
-                        if (docSnap.exists) {
+                    // 2. 監聽系統設定檔
+                    const docRef = fs.doc(db, 'vectech_config', 'main');
+                    unsubConfig = fs.onSnapshot(docRef, function(docSnap) {
+                        if (docSnap.exists()) {
                             const data = docSnap.data();
                             setSalesTargets(data.salesTargets || defaultSalesTargets);
                             setAdminPassword(data.adminPassword || '8888');
                         } else {
-                            db.collection('vectech_config').doc('main').set({
-                                salesTargets: defaultSalesTargets,
-                                adminPassword: '8888'
-                            });
+                            // 初始化設定檔
+                            fs.setDoc(docRef, { salesTargets: defaultSalesTargets, adminPassword: '8888' });
                         }
                     });
+                }
 
-                return function() { 
-                    unsubscribeCases(); 
-                    unsubscribeConfig(); 
+                return function() {
+                    if(unsubCases) unsubCases();
+                    if(unsubConfig) unsubConfig();
                 };
             }, []);
 
-            // 📊 統計邏輯
             const stats = useMemo(function() {
                 const summary = { total: cases.length, tracking: 0, tested: 0, closed: 0 };
                 const annualKpiMatrix = {};
@@ -193,7 +198,6 @@
                 return { summary: summary, annualKpiMatrix: annualKpiMatrix, monthlyTotal: monthlyTotal, monthlyStats: monthlyStats };
             }, [cases, salesTargets]);
 
-            // --- 事件處理 ---
             const handleManagerLogin = function(e) {
                 e.preventDefault();
                 if (passwordInput === adminPassword) {
@@ -206,7 +210,6 @@
                 }
             };
 
-            // 🚀 新增獨立文件，絕對不覆蓋
             const handleAddCase = async function(e) {
                 e.preventDefault();
                 try {
@@ -224,10 +227,9 @@
 
                     const month = parseInt(date.split('-')[1], 10) || new Date().getMonth() + 1;
                     const timestamp = Date.now();
-                    const shortId = timestamp.toString().slice(-6); // 產生6碼獨立編號
 
                     const newCase = {
-                        id: shortId,
+                        id: timestamp.toString().slice(-6), // 6碼獨立編號
                         sales: sales, client: client, equipment: equipment, date: date, status: status,
                         result: fd.get('result') || '',
                         month: month,
@@ -235,16 +237,14 @@
                     };
 
                     setCloudStatus('⏳ 寫入雲端中...');
-                    // 新寫法：直接將案件以獨立卡片加入資料庫
-                    await db.collection('vectech_cases').add(newCase);
+                    const { db, fs } = window;
+                    await fs.addDoc(fs.collection(db, 'vectech_cases'), newCase);
                     
                     e.target.reset();
-                    alert('✨ 案件已成功上傳雲端！');
+                    alert('✨ 案件已成功寫入雲端！');
                     if (appMode === 'manager') setActiveTab('data');
-                    
                 } catch (error) {
-                    console.error(error);
-                    alert('❌ 寫入失敗，請檢查網路。錯誤：' + error.message);
+                    alert('⚠️ 寫入錯誤：' + error.message);
                 }
             };
 
@@ -252,12 +252,13 @@
                 const p = newPasswordInput.trim();
                 if (!p) return alert('⚠️ 密碼不能為空白！');
                 try {
-                    await db.collection('vectech_config').doc('main').set({ adminPassword: p }, { merge: true });
+                    const { db, fs } = window;
+                    await fs.setDoc(fs.doc(db, 'vectech_config', 'main'), { adminPassword: p }, { merge: true });
                     setShowSettingsModal(false);
                     setNewPasswordInput('');
-                    alert('✅ 密碼已變更，系統將為您登出。');
+                    alert('✅ 密碼已變更，請重新登入。');
                     setAppMode('manager_auth');
-                } catch(err) {
+                } catch (err) {
                     alert('設定失敗: ' + err.message);
                 }
             };
@@ -271,22 +272,21 @@
                 newTargets[name] = parseInt(newSalesTarget, 10) || 1;
                 
                 try {
-                    await db.collection('vectech_config').doc('main').set({ salesTargets: newTargets }, { merge: true });
+                    const { db, fs } = window;
+                    await fs.setDoc(fs.doc(db, 'vectech_config', 'main'), { salesTargets: newTargets }, { merge: true });
                     setNewSalesName('');
                     alert("✅ 已新增業務：" + name);
-                } catch(err) {
+                } catch (err) {
                     alert('設定失敗: ' + err.message);
                 }
             };
 
-            // 🚀 一次砍掉所有獨立卡片
             const handleClearData = async function() {
                 try {
-                    const snapshot = await db.collection('vectech_cases').get();
-                    const batch = db.batch();
-                    snapshot.docs.forEach(function(doc) {
-                        batch.delete(doc.ref);
-                    });
+                    const { db, fs } = window;
+                    const snapshot = await fs.getDocs(fs.collection(db, 'vectech_cases'));
+                    const batch = fs.writeBatch(db);
+                    snapshot.docs.forEach(function(docSnap) { batch.delete(docSnap.ref); });
                     await batch.commit();
                     setShowClearConfirm(false);
                     alert("✅ 雲端資料庫已徹底清空！");
@@ -316,9 +316,9 @@
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
                     <div className="bg-red-500/10 p-8 rounded-3xl border border-red-500/30 max-w-xl shadow-2xl">
                         <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-white text-2xl font-bold mb-4 tracking-wider">⛔ 系統連線異常</h2>
+                        <h2 className="text-white text-2xl font-bold mb-4">⛔ 系統連線異常</h2>
                         <div className="bg-black/40 p-4 rounded-xl mb-6 text-left border border-white/5">
-                            <p className="text-red-300 font-mono text-sm leading-relaxed whitespace-pre-wrap">{errorMsg}</p>
+                            <p className="text-red-300 font-mono text-sm whitespace-pre-wrap">{errorMsg}</p>
                         </div>
                         <button onClick={function() { window.location.reload(); }} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold">重新載入</button>
                     </div>
@@ -343,13 +343,12 @@
                                 <Wifi className="text-emerald-400 animate-pulse" size={16} />
                                 <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">v11</span></h1>
-                            <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management</p>
+                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">v14</span></h1>
                         </div>
 
                         <PortalCard 
                             icon={<UserCircle size={48} className="text-blue-400" />}
-                            title="業務人員入口" desc="即時回報試做案件，獨立不覆蓋。"
+                            title="業務人員入口" desc="即時回報試做案件，獨立寫入。"
                             onClick={function() { setAppMode('sales'); setActiveTab('form'); }} color="blue"
                         />
                         <PortalCard 
@@ -363,17 +362,16 @@
 
             if (appMode === 'manager_auth') return (
                 <div className="min-h-screen flex items-center justify-center p-6">
-                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center animate-in slide-in-from-bottom-8">
+                    <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center">
                         <Lock className="text-emerald-400 mx-auto mb-6" size={48} />
-                        <h2 className="text-white text-3xl font-black mb-2">安全身分驗證</h2>
-                        <p className="text-slate-400 mb-8">請輸入主管專屬識別碼</p>
+                        <h2 className="text-white text-3xl font-black mb-6">安全身分驗證</h2>
                         <form onSubmit={handleManagerLogin} className="space-y-6">
                             <input 
                                 type="password" value={passwordInput} onChange={function(e) { setPasswordInput(e.target.value); }} placeholder="••••" autoFocus
                                 className="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-white text-center text-4xl tracking-[0.5em] outline-none focus:border-emerald-500 transition-all"
                             />
                             {loginError && <p className="text-red-400 font-bold text-sm">識別碼不正確</p>}
-                            <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                            <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-all flex items-center justify-center gap-2">
                                 驗證登入 <ArrowRight />
                             </button>
                             <button type="button" onClick={function() { setAppMode('landing'); }} className="text-slate-500 hover:text-white">返回首頁</button>
@@ -389,7 +387,7 @@
                     <nav className={"w-full md:w-72 text-white flex flex-col shrink-0 z-20 print:hidden transition-colors duration-500 " + (isManager ? "bg-[#0f172a]" : "bg-[#1e3a8a]")}>
                         <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
                             <ShieldCheck className="text-emerald-400" size={28}/>
-                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.11</span></h1></div>
+                            <div><h1 className="text-xl font-black tracking-tight">Vectech <span className="text-xs text-blue-300 ml-1">v.14</span></h1></div>
                         </div>
                         <div className="px-4 space-y-2 flex-1">
                             {isManager ? (
@@ -495,7 +493,7 @@
                                                 <textarea name="result" rows="4" className="professional-input resize-none" placeholder="輸入詳細進度..." />
                                             </div>
                                         </div>
-                                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-3xl font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer">
+                                        <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-3xl font-black text-2xl shadow-xl flex items-center justify-center gap-3 cursor-pointer">
                                             寫入雲端資料庫 <Database />
                                         </button>
                                     </form>
