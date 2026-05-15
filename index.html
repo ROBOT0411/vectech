@@ -6,7 +6,7 @@
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
-    <title>設備試做管理系統 ver.10</title>
+    <title>設備試做管理系統 ver.11</title>
     
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
@@ -23,8 +23,6 @@
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- 引入 Firebase -->
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
@@ -79,7 +77,6 @@
         const UserPlus = p => <Icon name="ph-user-plus" {...p} />;
         const Printer = p => <Icon name="ph-printer" {...p} />;
         const KeyRound = p => <Icon name="ph-key" {...p} />;
-        const CloudArrowDown = p => <Icon name="ph-cloud-arrow-down" {...p} />;
 
         const firebaseConfig = {
             apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
@@ -87,18 +84,15 @@
             projectId: "robot-ai-d531d",
             storageBucket: "robot-ai-d531d.firebasestorage.app",
             messagingSenderId: "499127775198",
-            appId: "1:499127775198:web:da8ef20a9a759dc767f74f",
-            measurementId: "G-XH8K1GWB5F"
+            appId: "1:499127775198:web:da8ef20a9a759dc767f74f"
         };
         
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
-        // 🚀 終極修復：強制手機使用 Long Polling 通訊，解決 Safari/LINE 阻擋 Offline 問題
-        db.settings({
-            experimentalForceLongPolling: true
-        });
+        // 確保手機網路不穩時也能穩定連線
+        db.settings({ experimentalForceLongPolling: true });
 
         const defaultSalesTargets = { ALSTON: 5, ALEX: 5, CHRIS: 3, HANK: 2 };
 
@@ -123,81 +117,49 @@
             const [exportMonth, setExportMonth] = useState('all');
             const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
 
+            // 🚀 v11 企業級架構：分開監聽，獨立卡片設計
             useEffect(() => {
                 setCloudStatus('讀取資料庫中...');
                 
-                // 加強版：如果 API Key 填錯，會立刻報錯
-                auth.signInAnonymously().catch(function(err) { 
-                    console.log("Auth Warning:", err); 
-                    if(err.code === 'auth/invalid-api-key') {
-                        setErrorMsg("您的 Firebase 金鑰有誤！請回 Firebase 專案設定重新複製 config。");
+                // 1. 監聽所有的獨立案件
+                const unsubscribeCases = db.collection('vectech_cases')
+                    .orderBy('createAt', 'asc')
+                    .onSnapshot(function(snap) {
+                        const loadedCases = [];
+                        snap.forEach(function(doc) {
+                            loadedCases.push({ docId: doc.id, ...doc.data() });
+                        });
+                        setCases(loadedCases);
+                        setCloudStatus('🟢 雲端已同步 (v11)');
                         setIsLoading(false);
-                    }
-                });
+                    }, function(err) {
+                        console.error("Cases Listen Error:", err);
+                        setErrorMsg("資料庫存取被拒絕！請確認 Firebase 規則已改為 if true;");
+                        setIsLoading(false);
+                    });
 
-                const docRef = db.collection('salesSystem').doc('mainData');
-                
-                const unsubscribeDB = docRef.onSnapshot(function(docSnap) {
-                    if (docSnap.exists) {
-                        const data = docSnap.data();
-                        setCases(data.cases || []);
-                        setSalesTargets(data.salesTargets || defaultSalesTargets);
-                        setAdminPassword(data.adminPassword || '8888');
-                    } else {
-                        setCases([]);
-                        setSalesTargets(defaultSalesTargets);
-                        setAdminPassword('8888');
-                    }
-                    setCloudStatus('🟢 雲端已連線 (v10)');
-                    setIsLoading(false);
-                }, function(err) {
-                    console.error("Listen Error:", err);
-                    setErrorMsg("資料庫連線失敗，請確認網路狀態。(" + err.message + ")");
-                    setIsLoading(false);
-                });
+                // 2. 監聽系統設定檔 (密碼、KPI目標)
+                const unsubscribeConfig = db.collection('vectech_config').doc('main')
+                    .onSnapshot(function(docSnap) {
+                        if (docSnap.exists) {
+                            const data = docSnap.data();
+                            setSalesTargets(data.salesTargets || defaultSalesTargets);
+                            setAdminPassword(data.adminPassword || '8888');
+                        } else {
+                            db.collection('vectech_config').doc('main').set({
+                                salesTargets: defaultSalesTargets,
+                                adminPassword: '8888'
+                            });
+                        }
+                    });
 
-                return function() { unsubscribeDB(); };
+                return function() { 
+                    unsubscribeCases(); 
+                    unsubscribeConfig(); 
+                };
             }, []);
 
-            const forceRefreshData = function() {
-                setIsLoading(true);
-                setCloudStatus('強制抓取雲端資料中...');
-                const docRef = db.collection('salesSystem').doc('mainData');
-                
-                docRef.get().then(function(docSnap) {
-                    if (docSnap.exists) {
-                        const data = docSnap.data();
-                        setCases(data.cases || []);
-                        setSalesTargets(data.salesTargets || defaultSalesTargets);
-                        setAdminPassword(data.adminPassword || '8888');
-                        alert("✅ 成功！已強制抓取最新資料。");
-                    } else {
-                        alert("⚠️ 目前雲端資料庫是空的！請先新增一筆資料。");
-                    }
-                    setCloudStatus('🟢 雲端已連線');
-                    setIsLoading(false);
-                }).catch(function(err) {
-                    console.error("Fetch Error:", err);
-                    alert("❌ 抓取失敗：" + err.message);
-                    setIsLoading(false);
-                });
-            };
-
-            const syncToCloud = async function(newData) {
-                setCloudStatus('⏳ 寫入中...');
-                try {
-                    const docRef = db.collection('salesSystem').doc('mainData');
-                    await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已連線');
-                    return true;
-                } catch (err) {
-                    console.error("Write Error:", err);
-                    alert("❌ 寫入失敗！錯誤：" + err.message);
-                    setCloudStatus('🔴 寫入失敗');
-                    return false;
-                }
-            };
-
+            // 📊 統計邏輯
             const stats = useMemo(function() {
                 const summary = { total: cases.length, tracking: 0, tested: 0, closed: 0 };
                 const annualKpiMatrix = {};
@@ -231,6 +193,7 @@
                 return { summary: summary, annualKpiMatrix: annualKpiMatrix, monthlyTotal: monthlyTotal, monthlyStats: monthlyStats };
             }, [cases, salesTargets]);
 
+            // --- 事件處理 ---
             const handleManagerLogin = function(e) {
                 e.preventDefault();
                 if (passwordInput === adminPassword) {
@@ -243,15 +206,14 @@
                 }
             };
 
+            // 🚀 新增獨立文件，絕對不覆蓋
             const handleAddCase = async function(e) {
                 e.preventDefault();
                 try {
                     const fd = new FormData(e.target);
                     const sales = fd.get('sales');
-                    const clientVal = fd.get('client');
-                    const equipmentVal = fd.get('equipment');
-                    const client = clientVal ? clientVal.trim() : '';
-                    const equipment = equipmentVal ? equipmentVal.trim() : '';
+                    const client = fd.get('client') ? fd.get('client').trim() : '';
+                    const equipment = fd.get('equipment') ? fd.get('equipment').trim() : '';
                     const date = fd.get('date');
                     const status = fd.get('status');
 
@@ -261,37 +223,42 @@
                     if (!equipment) return alert('⚠️ 請輸入設備/產品型號！');
 
                     const month = parseInt(date.split('-')[1], 10) || new Date().getMonth() + 1;
+                    const timestamp = Date.now();
+                    const shortId = timestamp.toString().slice(-6); // 產生6碼獨立編號
 
                     const newCase = {
-                        id: cases.length > 0 ? Math.max.apply(Math, cases.map(function(c) { return c.id; })) + 1 : 1,
+                        id: shortId,
                         sales: sales, client: client, equipment: equipment, date: date, status: status,
                         result: fd.get('result') || '',
                         month: month,
-                        createAt: Date.now()
+                        createAt: timestamp
                     };
 
-                    const updatedCases = [...cases, newCase];
-                    const isSuccess = await syncToCloud({ cases: updatedCases });
+                    setCloudStatus('⏳ 寫入雲端中...');
+                    // 新寫法：直接將案件以獨立卡片加入資料庫
+                    await db.collection('vectech_cases').add(newCase);
                     
-                    if (isSuccess) {
-                        e.target.reset();
-                        alert('✨ 案件已成功寫入雲端！');
-                        if (appMode === 'manager') setActiveTab('data');
-                    }
+                    e.target.reset();
+                    alert('✨ 案件已成功上傳雲端！');
+                    if (appMode === 'manager') setActiveTab('data');
+                    
                 } catch (error) {
-                    alert('⚠️ 系統錯誤：' + error.message);
+                    console.error(error);
+                    alert('❌ 寫入失敗，請檢查網路。錯誤：' + error.message);
                 }
             };
 
             const handleSaveNewPassword = async function() {
                 const p = newPasswordInput.trim();
                 if (!p) return alert('⚠️ 密碼不能為空白！');
-                const isSuccess = await syncToCloud({ adminPassword: p });
-                if (isSuccess) {
+                try {
+                    await db.collection('vectech_config').doc('main').set({ adminPassword: p }, { merge: true });
                     setShowSettingsModal(false);
                     setNewPasswordInput('');
-                    alert('✅ 密碼已變更，請重新登入。');
+                    alert('✅ 密碼已變更，系統將為您登出。');
                     setAppMode('manager_auth');
+                } catch(err) {
+                    alert('設定失敗: ' + err.message);
                 }
             };
 
@@ -299,13 +266,32 @@
                 const name = newSalesName.trim().toUpperCase();
                 if (!name) return alert('⚠️ 請輸入姓名！');
                 if (salesTargets[name]) return alert('⚠️ 業務已存在！');
+                
                 const newTargets = Object.assign({}, salesTargets);
                 newTargets[name] = parseInt(newSalesTarget, 10) || 1;
                 
-                const isSuccess = await syncToCloud({ salesTargets: newTargets });
-                if (isSuccess) {
+                try {
+                    await db.collection('vectech_config').doc('main').set({ salesTargets: newTargets }, { merge: true });
                     setNewSalesName('');
                     alert("✅ 已新增業務：" + name);
+                } catch(err) {
+                    alert('設定失敗: ' + err.message);
+                }
+            };
+
+            // 🚀 一次砍掉所有獨立卡片
+            const handleClearData = async function() {
+                try {
+                    const snapshot = await db.collection('vectech_cases').get();
+                    const batch = db.batch();
+                    snapshot.docs.forEach(function(doc) {
+                        batch.delete(doc.ref);
+                    });
+                    await batch.commit();
+                    setShowClearConfirm(false);
+                    alert("✅ 雲端資料庫已徹底清空！");
+                } catch (error) {
+                    alert('清空失敗: ' + error.message);
                 }
             };
 
@@ -314,9 +300,9 @@
                 if (list.length === 0) return alert('無資料可匯出');
 
                 const BOM = '\uFEFF';
-                const header = "月份,業務,客戶,設備,日期,狀態,結果\n";
+                const header = "編號,月份,業務,客戶,設備,日期,狀態,結果\n";
                 const rows = list.map(function(c) { 
-                    return c.month + "月," + c.sales + "," + c.client + ",\"" + c.equipment + "\"," + c.date + "," + c.status + ",\"" + (c.result || "").replace(/\n/g, ' ') + "\""; 
+                    return c.id + "," + c.month + "月," + c.sales + "," + c.client + ",\"" + c.equipment + "\"," + c.date + "," + c.status + ",\"" + (c.result || "").replace(/\n/g, ' ') + "\""; 
                 }).join('\n');
                 const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
@@ -330,9 +316,9 @@
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
                     <div className="bg-red-500/10 p-8 rounded-3xl border border-red-500/30 max-w-xl shadow-2xl">
                         <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
-                        <h2 className="text-white text-2xl font-bold mb-4">⛔ 系統連線異常</h2>
+                        <h2 className="text-white text-2xl font-bold mb-4 tracking-wider">⛔ 系統連線異常</h2>
                         <div className="bg-black/40 p-4 rounded-xl mb-6 text-left border border-white/5">
-                            <p className="text-red-300 font-mono text-sm whitespace-pre-wrap">{errorMsg}</p>
+                            <p className="text-red-300 font-mono text-sm leading-relaxed whitespace-pre-wrap">{errorMsg}</p>
                         </div>
                         <button onClick={function() { window.location.reload(); }} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold">重新載入</button>
                     </div>
@@ -357,13 +343,13 @@
                                 <Wifi className="text-emerald-400 animate-pulse" size={16} />
                                 <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                             </div>
-                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">v10</span></h1>
+                            <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">v11</span></h1>
                             <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management</p>
                         </div>
 
                         <PortalCard 
                             icon={<UserCircle size={48} className="text-blue-400" />}
-                            title="業務人員入口" desc="即時回報試做案件，雲端同步。"
+                            title="業務人員入口" desc="即時回報試做案件，獨立不覆蓋。"
                             onClick={function() { setAppMode('sales'); setActiveTab('form'); }} color="blue"
                         />
                         <PortalCard 
@@ -403,7 +389,7 @@
                     <nav className={"w-full md:w-72 text-white flex flex-col shrink-0 z-20 print:hidden transition-colors duration-500 " + (isManager ? "bg-[#0f172a]" : "bg-[#1e3a8a]")}>
                         <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
                             <ShieldCheck className="text-emerald-400" size={28}/>
-                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.10</span></h1></div>
+                            <div><h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.11</span></h1></div>
                         </div>
                         <div className="px-4 space-y-2 flex-1">
                             {isManager ? (
@@ -419,11 +405,8 @@
                             )}
                         </div>
                         <div className="p-4 mt-auto border-t border-white/5 space-y-2">
-                            <button onClick={forceRefreshData} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-500/20 text-blue-300 hover:bg-blue-500/30 transition-all font-bold text-sm mb-4 border border-blue-500/30 shadow-lg">
-                                <CloudArrowDown size={18}/> 強制從雲端抓取更新
-                            </button>
                             <div className="px-4 py-2 flex items-center gap-2">
-                                <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 || cloudStatus.indexOf('連線') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
+                                <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
                                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
                             </div>
                             {isManager && (
@@ -475,7 +458,7 @@
                             <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom-8">
                                 <header className="text-center mb-10">
                                     <h2 className={"text-4xl font-black mb-4 " + (isManager ? "text-emerald-900" : "text-blue-900")}>新增試做案</h2>
-                                    <p className="text-slate-500 font-medium">同步儲存於雲端，主管端可即時查看</p>
+                                    <p className="text-slate-500 font-medium">獨立寫入雲端防覆蓋，主管端可即時查看</p>
                                 </header>
                                 <div className="bg-white p-10 rounded-[3rem] shadow-2xl border-t-[12px] border-blue-600">
                                     <form onSubmit={handleAddCase} className="space-y-8">
@@ -638,6 +621,7 @@
                                     <table className="w-full text-left">
                                         <thead className="bg-slate-900 text-white text-xs font-black uppercase tracking-widest">
                                             <tr>
+                                                <th className="p-6">編號</th>
                                                 <th className="p-6">月份</th>
                                                 <th className="p-6">業務</th>
                                                 <th className="p-6">客戶</th>
@@ -648,7 +632,8 @@
                                         <tbody>
                                             {cases.slice().reverse().map(function(c) {
                                                 return (
-                                                    <tr key={c.id} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                    <tr key={c.docId} className="border-b border-slate-50 hover:bg-slate-50 transition-colors">
+                                                        <td className="p-6 font-mono text-slate-400 text-xs">{c.id}</td>
                                                         <td className="p-6 font-bold text-blue-600">{c.month}月</td>
                                                         <td className="p-6 font-black text-slate-700">{c.sales}</td>
                                                         <td className="p-6 font-medium">{c.client}</td>
@@ -659,12 +644,12 @@
                                                     </tr>
                                                 );
                                             })}
-                                            {cases.length === 0 && <tr><td colSpan="5" className="p-20 text-center text-slate-300 font-bold">目前無雲端紀錄</td></tr>}
+                                            {cases.length === 0 && <tr><td colSpan="6" className="p-20 text-center text-slate-300 font-bold">目前無雲端紀錄</td></tr>}
                                         </tbody>
                                     </table>
                                 </div>
                                 <div className="mt-8 flex justify-end print:hidden">
-                                    <button onClick={function() { setShowClearConfirm(true); }} className="text-red-400 hover:text-red-600 font-bold text-sm flex items-center gap-1"><Trash2 size={16}/> 清空資料庫</button>
+                                    <button onClick={function() { setShowClearConfirm(true); }} className="text-red-400 hover:text-red-600 font-bold text-sm flex items-center gap-1"><Trash2 size={16}/> 徹底清空資料庫</button>
                                 </div>
                             </div>
                         )}
@@ -700,11 +685,11 @@
                         <div className="fixed inset-0 bg-red-900/60 backdrop-blur-md z-[200] flex items-center justify-center p-6 animate-in fade-in print:hidden">
                             <div className="bg-white p-12 rounded-[3rem] shadow-2xl text-center">
                                 <AlertTriangle size={64} className="text-red-600 mx-auto mb-6" />
-                                <h3 className="text-2xl font-black mb-4">確定清空雲端資料嗎？</h3>
-                                <p className="text-slate-500 mb-8 font-medium">這將同步刪除所有裝置上的歷史紀錄，<span className="text-red-500 font-bold">無法復原！</span></p>
+                                <h3 className="text-2xl font-black mb-4">確定徹底清空嗎？</h3>
+                                <p className="text-slate-500 mb-8 font-medium">這將刪除所有人的雲端歷史紀錄，<span className="text-red-500 font-bold">絕對無法復原！</span></p>
                                 <div className="flex gap-4">
                                     <button onClick={function() { setShowClearConfirm(false); }} className="flex-1 py-4 bg-slate-100 text-slate-500 rounded-2xl font-bold">取消</button>
-                                    <button onClick={async function() { await syncToCloud({ cases: [] }); setShowClearConfirm(false); }} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg">清空</button>
+                                    <button onClick={handleClearData} className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black shadow-lg">確定清空</button>
                                 </div>
                             </div>
                         </div>
