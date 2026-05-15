@@ -2,11 +2,13 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <!-- 防止手機縮放破版 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>設備試做管理系統 ver.05</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    <title>設備試做管理系統 ver.06</title>
     
-    <!-- 💡 黑畫面偵測器：捕捉所有當機錯誤並顯示，避免一片黑 -->
+    <!-- 💡 黑畫面偵測器 -->
     <script>
         window.onerror = function(message, source, lineno, colno, error) {
             document.body.innerHTML = '<div style="background:#450a0a; color:#fca5a5; padding:30px; text-align:center; font-family:sans-serif; height:100vh; display:flex; flex-direction:column; justify-content:center;">' +
@@ -19,22 +21,13 @@
         };
     </script>
 
-    <!-- 引入 Tailwind CSS 進行專業排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- 引入 Phosphor Icons (專業圖示庫) -->
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
-    
-    <!-- ⚡ 改用更穩定、更快速的亞洲 CDN 載入 React 核心 -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
-    
-    <!-- 引入 Firebase 雲端資料庫模組 -->
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
-    
-    <!-- 引入 Babel 編譯器 (同樣改用穩定節點) -->
     <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 
     <style>
@@ -58,11 +51,10 @@
     <div id="root"></div>
 
     <script type="text/babel" data-presets="react,env">
-        // === React Hooks ===
         const { useState, useMemo, useEffect } = React;
 
-        // === 圖示包裝器 ===
-        const Icon = ({ name, size=24, className="" }) => <i className={`ph ${name} ${className}`} style={{ fontSize: size }}></i>;
+        // 移除模板字串的傳統寫法，防止記事本破壞程式碼
+        const Icon = ({ name, size=24, className="" }) => <i className={"ph " + name + " " + className} style={{ fontSize: size }}></i>;
         const Activity = p => <Icon name="ph-activity" {...p} />;
         const Layers = p => <Icon name="ph-stack" {...p} />;
         const UserCircle = p => <Icon name="ph-user-circle" {...p} />;
@@ -87,10 +79,8 @@
         const AlertTriangle = p => <Icon name="ph-warning" {...p} />;
         const UserPlus = p => <Icon name="ph-user-plus" {...p} />;
         const Printer = p => <Icon name="ph-printer" {...p} />;
-        const Target = p => <Icon name="ph-target" {...p} />;
         const KeyRound = p => <Icon name="ph-key" {...p} />;
 
-        // === Firebase 初始化 ===
         const firebaseConfig = {
             apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
             authDomain: "robot-ai-d531d.firebaseapp.com",
@@ -101,15 +91,12 @@
             measurementId: "G-XH8K1GWB5F"
         };
         
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
+        if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
 
         const defaultSalesTargets = { ALSTON: 5, ALEX: 5, CHRIS: 3, HANK: 2 };
 
-        // === 主應用程式 ===
         function App() {
             const [appMode, setAppMode] = useState('landing'); 
             const [activeTab, setActiveTab] = useState('dashboard');
@@ -117,12 +104,10 @@
             const [errorMsg, setErrorMsg] = useState('');
             const [cloudStatus, setCloudStatus] = useState('連線中...');
 
-            // 雲端資料
             const [cases, setCases] = useState([]);
             const [salesTargets, setSalesTargets] = useState(defaultSalesTargets);
             const [adminPassword, setAdminPassword] = useState('8888');
 
-            // 本地 UI 狀態
             const [passwordInput, setPasswordInput] = useState('');
             const [loginError, setLoginError] = useState(false);
             const [showSettingsModal, setShowSettingsModal] = useState(false);
@@ -133,16 +118,13 @@
             const [exportMonth, setExportMonth] = useState('all');
             const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
 
-            // 1. 強制直連：繞過所有手機瀏覽器的阻擋
             useEffect(() => {
                 setCloudStatus('讀取資料庫中...');
-
-                // 備用登入（失敗也不影響）
-                auth.signInAnonymously().catch(() => console.log("匿名登入略過，強制使用規則直連"));
+                auth.signInAnonymously().catch(function() { console.log("匿名登入略過，強制使用規則直連"); });
 
                 const docRef = db.collection('salesSystem').doc('mainData');
                 
-                const unsubscribeDB = docRef.onSnapshot((docSnap) => {
+                const unsubscribeDB = docRef.onSnapshot(function(docSnap) {
                     if (docSnap.exists) {
                         const data = docSnap.data();
                         setCases(data.cases || []);
@@ -151,92 +133,86 @@
                     } else {
                         docRef.set({ cases: [], salesTargets: defaultSalesTargets, adminPassword: '8888' });
                     }
-                    setCloudStatus('🟢 雲端已同步 (ver.05)');
+                    setCloudStatus('🟢 雲端已同步 (ver.06)');
                     setIsLoading(false);
-                }, (err) => {
+                }, function(err) {
                     console.error("Listen Error:", err);
-                    setErrorMsg(`資料庫存取被拒絕！❌\n請務必到 Firebase -> Firestore Database -> 規則 (Rules)，將程式碼改成 allow read, write: if true;`);
+                    setErrorMsg("資料庫存取被拒絕！❌\n請務必到 Firebase -> Firestore Database -> 規則 (Rules)，將程式碼改成 allow read, write: if true;");
                     setIsLoading(false);
                 });
 
-                return () => unsubscribeDB();
+                return function() { unsubscribeDB(); };
             }, []);
 
-            // ☁️ 雲端寫入
-            const syncToCloud = async (newData) => {
+            const syncToCloud = async function(newData) {
                 setCloudStatus('⏳ 寫入雲端中...');
                 try {
                     const docRef = db.collection('salesSystem').doc('mainData');
                     await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已同步 (ver.05)');
+                    setCloudStatus('🟢 雲端已同步 (ver.06)');
                     return true;
                 } catch (err) {
                     console.error("Write Error:", err);
-                    alert(`❌ 寫入失敗！被資料庫阻擋。\n錯誤訊息：${err.message}\n👉 請檢查 Firebase 的「規則 (Rules)」是否已改成 if true;`);
+                    alert("❌ 寫入失敗！被資料庫阻擋。\n錯誤訊息：" + err.message + "\n👉 請檢查 Firebase 的「規則 (Rules)」是否已改成 if true;");
                     setCloudStatus('🔴 寫入失敗');
                     return false;
                 }
             };
 
-            // 📊 統計邏輯
-            const stats = useMemo(() => {
+            const stats = useMemo(function() {
                 const summary = { total: cases.length, tracking: 0, tested: 0, closed: 0 };
                 const annualKpiMatrix = {};
                 const monthlyTotal = Array(12).fill(0);
                 const monthlyStats = {};
 
-                Object.keys(salesTargets).forEach(s => { annualKpiMatrix[s] = Array(12).fill(0); });
+                Object.keys(salesTargets).forEach(function(s) { annualKpiMatrix[s] = Array(12).fill(0); });
 
-                cases.forEach(c => {
-                if (c.status === '追蹤中') summary.tracking++;
-                if (c.status === '已試做') summary.tested++;
-                if (c.status === '已成交') summary.closed++;
+                cases.forEach(function(c) {
+                    if (c.status === '追蹤中') summary.tracking++;
+                    if (c.status === '已試做') summary.tested++;
+                    if (c.status === '已成交') summary.closed++;
 
-                if (c.month >= 1 && c.month <= 12) {
-                    monthlyTotal[c.month - 1]++;
-                    if ((c.status === '已試做' || c.status === '已成交') && annualKpiMatrix[c.sales]) {
-                    annualKpiMatrix[c.sales][c.month - 1]++;
+                    if (c.month >= 1 && c.month <= 12) {
+                        monthlyTotal[c.month - 1]++;
+                        if ((c.status === '已試做' || c.status === '已成交') && annualKpiMatrix[c.sales]) {
+                            annualKpiMatrix[c.sales][c.month - 1]++;
+                        }
                     }
-                }
 
-                if (!monthlyStats[c.month]) {
-                    monthlyStats[c.month] = {};
-                    Object.keys(salesTargets).forEach(s => monthlyStats[c.month][s] = { total: 0, done: 0 });
-                }
-                if (monthlyStats[c.month][c.sales]) {
-                    monthlyStats[c.month][c.sales].total++;
-                    if (c.status === '已試做' || c.status === '已成交') monthlyStats[c.month][c.sales].done++;
-                }
+                    if (!monthlyStats[c.month]) {
+                        monthlyStats[c.month] = {};
+                        Object.keys(salesTargets).forEach(function(s) { monthlyStats[c.month][s] = { total: 0, done: 0 }; });
+                    }
+                    if (monthlyStats[c.month][c.sales]) {
+                        monthlyStats[c.month][c.sales].total++;
+                        if (c.status === '已試做' || c.status === '已成交') monthlyStats[c.month][c.sales].done++;
+                    }
                 });
 
-                return { summary, annualKpiMatrix, monthlyTotal, monthlyStats };
+                return { summary: summary, annualKpiMatrix: annualKpiMatrix, monthlyTotal: monthlyTotal, monthlyStats: monthlyStats };
             }, [cases, salesTargets]);
 
-            // --- 事件處理 ---
-            const handleManagerLogin = (e) => {
+            const handleManagerLogin = function(e) {
                 e.preventDefault();
                 if (passwordInput === adminPassword) {
-                setAppMode('manager');
-                setActiveTab('dashboard');
-                setLoginError(false);
-                setPasswordInput('');
+                    setAppMode('manager');
+                    setActiveTab('dashboard');
+                    setLoginError(false);
+                    setPasswordInput('');
                 } else {
-                setLoginError(true);
+                    setLoginError(true);
                 }
             };
 
-            const handleAddCase = async (e) => {
+            const handleAddCase = async function(e) {
                 e.preventDefault();
                 try {
                     const fd = new FormData(e.target);
                     const sales = fd.get('sales');
-                    
-                    // 防呆：去除頭尾空白，避免舊手機崩潰
                     const clientVal = fd.get('client');
                     const equipmentVal = fd.get('equipment');
                     const client = clientVal ? clientVal.trim() : '';
                     const equipment = equipmentVal ? equipmentVal.trim() : '';
-                    
                     const date = fd.get('date');
                     const status = fd.get('status');
 
@@ -248,10 +224,10 @@
                     const month = parseInt(date.split('-')[1], 10) || new Date().getMonth() + 1;
 
                     const newCase = {
-                        id: cases.length > 0 ? Math.max(...cases.map(c => c.id)) + 1 : 1,
-                        sales, client, equipment, date, status,
+                        id: cases.length > 0 ? Math.max.apply(Math, cases.map(function(c) { return c.id; })) + 1 : 1,
+                        sales: sales, client: client, equipment: equipment, date: date, status: status,
                         result: fd.get('result') || '',
-                        month,
+                        month: month,
                         createAt: Date.now()
                     };
 
@@ -268,57 +244,58 @@
                 }
             };
 
-            const handleSaveNewPassword = async () => {
+            const handleSaveNewPassword = async function() {
                 const p = newPasswordInput.trim();
                 if (!p) return alert('⚠️ 密碼不能為空白！');
                 const isSuccess = await syncToCloud({ adminPassword: p });
                 if (isSuccess) {
-                setShowSettingsModal(false);
-                setNewPasswordInput('');
-                alert('✅ 管理密碼已變更，系統將為您登出。');
-                setAppMode('manager_auth');
+                    setShowSettingsModal(false);
+                    setNewPasswordInput('');
+                    alert('✅ 管理密碼已變更，系統將為您登出。');
+                    setAppMode('manager_auth');
                 }
             };
 
-            const handleAddSales = async () => {
+            const handleAddSales = async function() {
                 const name = newSalesName.trim().toUpperCase();
                 if (!name) return alert('⚠️ 請輸入業務姓名！');
                 if (salesTargets[name]) return alert('⚠️ 此業務已存在！');
-                const newTargets = { ...salesTargets, [name]: parseInt(newSalesTarget, 10) || 1 };
+                const newTargets = Object.assign({}, salesTargets);
+                newTargets[name] = parseInt(newSalesTarget, 10) || 1;
                 
                 const isSuccess = await syncToCloud({ salesTargets: newTargets });
                 if (isSuccess) {
-                setNewSalesName('');
-                alert(`✅ 已新增業務：${name}`);
+                    setNewSalesName('');
+                    alert("✅ 已新增業務：" + name);
                 }
             };
 
-            const handleExportExcel = () => {
-                let list = exportMonth === 'all' ? cases : cases.filter(c => c.month === parseInt(exportMonth, 10));
+            const handleExportExcel = function() {
+                let list = exportMonth === 'all' ? cases : cases.filter(function(c) { return c.month === parseInt(exportMonth, 10); });
                 if (list.length === 0) return alert('此月份無資料可匯出');
 
                 const BOM = '\uFEFF';
                 const header = "月份,業務,客戶,設備,日期,狀態,結果\n";
-                // 確保 result 有值才執行取代，防當機
-                const rows = list.map(c => `${c.month}月,${c.sales},${c.client},"${c.equipment}",${c.date},${c.status},"${(c.result || '').replace(/\n/g, ' ')}"`).join('\n');
+                const rows = list.map(function(c) { 
+                    return c.month + "月," + c.sales + "," + c.client + ",\"" + c.equipment + "\"," + c.date + "," + c.status + ",\"" + (c.result || "").replace(/\n/g, ' ') + "\""; 
+                }).join('\n');
                 const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = `設備案件報表_${exportMonth}月.csv`;
+                a.download = "設備案件報表_" + exportMonth + "月.csv";
                 a.click();
             };
 
-            // --- 介面渲染 ---
             if (errorMsg) return (
                 <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
                 <div className="bg-red-500/10 p-8 rounded-3xl border border-red-500/30 max-w-xl shadow-2xl">
                     <AlertTriangle size={64} className="text-red-500 mx-auto mb-4" />
-                    <h2 className="text-white text-2xl font-bold mb-4 tracking-wider">⛔ 系統連線異常被阻擋</h2>
+                    <h2 className="text-white text-2xl font-bold mb-4 tracking-wider">⛔ 系統連線異常</h2>
                     <div className="bg-black/40 p-4 rounded-xl mb-6 text-left border border-white/5">
                     <p className="text-red-300 font-mono text-sm leading-relaxed whitespace-pre-wrap">{errorMsg}</p>
                     </div>
-                    <button onClick={() => window.location.reload()} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg">重新載入</button>
+                    <button onClick={function() { window.location.reload(); }} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg">重新載入</button>
                 </div>
                 </div>
             );
@@ -333,7 +310,6 @@
                 </div>
             );
 
-            // 入口首頁
             if (appMode === 'landing') return (
                 <div className="min-h-screen flex items-center justify-center p-4">
                 <div className="max-w-5xl w-full grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in zoom-in-95 duration-700">
@@ -342,25 +318,24 @@
                         <Wifi className="text-emerald-400 animate-pulse" size={16} />
                         <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.05</span></h1>
+                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.06</span></h1>
                     <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management Portal</p>
                     </div>
 
                     <PortalCard 
                     icon={<UserCircle size={48} className="text-blue-400" />}
                     title="業務人員入口" desc="即時回報試做案件，雲端同步 KPI 數據。"
-                    onClick={() => { setAppMode('sales'); setActiveTab('form'); }} color="blue"
+                    onClick={function() { setAppMode('sales'); setActiveTab('form'); }} color="blue"
                     />
                     <PortalCard 
                     icon={<Briefcase size={48} className="text-emerald-400" />}
                     title="管理階層入口" desc="全方位績效看板，包含年度矩陣與 Excel 匯出。"
-                    onClick={() => setAppMode('manager_auth')} color="emerald"
+                    onClick={function() { setAppMode('manager_auth'); }} color="emerald"
                     />
                 </div>
                 </div>
             );
 
-            // 主管驗證
             if (appMode === 'manager_auth') return (
                 <div className="min-h-screen flex items-center justify-center p-6">
                 <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-10 rounded-[2.5rem] shadow-2xl w-full max-w-md text-center animate-in slide-in-from-bottom-8">
@@ -369,14 +344,14 @@
                     <p className="text-slate-400 mb-8">請輸入主管專屬識別碼</p>
                     <form onSubmit={handleManagerLogin} className="space-y-6">
                     <input 
-                        type="password" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="••••" autoFocus
+                        type="password" value={passwordInput} onChange={function(e) { setPasswordInput(e.target.value); }} placeholder="••••" autoFocus
                         className="w-full bg-black/30 border border-white/10 rounded-2xl p-5 text-white text-center text-4xl tracking-[0.5em] outline-none focus:border-emerald-500 transition-all"
                     />
                     {loginError && <p className="text-red-400 font-bold text-sm">識別碼不正確</p>}
                     <button type="submit" className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-5 rounded-2xl font-black text-xl shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
                         驗證登入 <ArrowRight />
                     </button>
-                    <button type="button" onClick={() => setAppMode('landing')} className="text-slate-500 hover:text-white">返回首頁</button>
+                    <button type="button" onClick={function() { setAppMode('landing'); }} className="text-slate-500 hover:text-white">返回首頁</button>
                     </form>
                 </div>
                 </div>
@@ -386,5 +361,186 @@
 
             return (
                 <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
-                {/* 側邊欄 */}
-                <nav className={`w-full md:w-72 text-white flex flex-col shrink-0 z-20 ${isManager ? 'bg-[#0f17
+                <nav className={"w-full md:w-72 text-white flex flex-col shrink-0 z-20 print:hidden transition-colors duration-500 " + (isManager ? "bg-[#0f172a]" : "bg-[#1e3a8a]")}>
+                    <div className="p-8 border-b border-white/5 mb-6 flex items-center gap-3">
+                    <ShieldCheck className="text-emerald-400" size={28}/>
+                    <div>
+                        <h1 className="text-xl font-black tracking-tight">Vectech 系統 <span className="text-xs text-blue-300 ml-1">v.06</span></h1>
+                    </div>
+                    </div>
+                    <div className="px-4 space-y-2 flex-1">
+                    {isManager ? (
+                        <React.Fragment>
+                        <SidebarItem active={activeTab === 'dashboard'} icon={<Home/>} label="數據總覽" onClick={function() { setActiveTab('dashboard'); }} />
+                        <SidebarItem active={activeTab === 'monthly_kpi'} icon={<BarChart3/>} label="當月 KPI 分析" onClick={function() { setActiveTab('monthly_kpi'); }} />
+                        <SidebarItem active={activeTab === 'annual_kpi'} icon={<TrendingUp/>} label="年度達標分析" onClick={function() { setActiveTab('annual_kpi'); }} />
+                        <SidebarItem active={activeTab === 'data'} icon={<TableIcon/>} label="案件總表匯出" onClick={function() { setActiveTab('data'); }} />
+                        <SidebarItem active={activeTab === 'form'} icon={<FilePlus/>} label="新增/補登案件" onClick={function() { setActiveTab('form'); }} />
+                        </React.Fragment>
+                    ) : (
+                        <SidebarItem active={true} icon={<FilePlus/>} label="新增試做案" onClick={function() { setActiveTab('form'); }} />
+                    )}
+                    </div>
+                    <div className="p-4 mt-auto border-t border-white/5 space-y-2">
+                    <div className="px-4 py-2 flex items-center gap-2">
+                        <span className={"w-2 h-2 rounded-full animate-pulse " + (cloudStatus.indexOf('同步') !== -1 ? 'bg-emerald-400' : 'bg-amber-400')}></span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{cloudStatus}</span>
+                    </div>
+                    {isManager && (
+                        <button onClick={function() { setShowSettingsModal(true); }} className="w-full flex items-center gap-3 p-4 rounded-2xl hover:bg-white/5 transition-all text-slate-400 hover:text-white font-bold text-sm">
+                        <Settings size={18}/> 系統安全設定
+                        </button>
+                    )}
+                    <button onClick={function() { setAppMode('landing'); setPasswordInput(''); }} className="w-full flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-all font-bold text-sm">
+                        <LogOut size={18}/> 登出
+                    </button>
+                    </div>
+                </nav>
+
+                <main className="flex-1 overflow-y-auto p-6 md:p-12 print:p-0 print:bg-white text-slate-800">
+                    
+                    {isManager && activeTab === 'dashboard' && (
+                    <div className="max-w-6xl mx-auto animate-in fade-in slide-in-from-right-8">
+                        <header className="mb-10">
+                        <h2 className="text-4xl font-black text-slate-900 mb-2">管理中心</h2>
+                        <p className="text-slate-500 font-medium">全公司案件分佈與即時數據分析</p>
+                        </header>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+                        <StatBox label="總量" value={stats.summary.total} color="slate" />
+                        <StatBox label="追蹤" value={stats.summary.tracking} color="amber" />
+                        <StatBox label="試做" value={stats.summary.tested} color="blue" />
+                        <StatBox label="成交" value={stats.summary.closed} color="emerald" />
+                        </div>
+                        <div className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100">
+                        <h3 className="text-xl font-bold mb-6 flex items-center gap-2"><Activity className="text-blue-500"/> 各業務案件貢獻度</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-6">
+                            {Object.keys(salesTargets).map(function(s) {
+                                const count = cases.filter(function(c) { return c.sales === s; }).length;
+                                const pct = cases.length ? (count / cases.length) * 100 : 0;
+                                return (
+                                <div key={s}>
+                                    <div className="flex justify-between text-sm font-bold mb-2"><span>{s}</span><span>{count} 件</span></div>
+                                    <div className="h-2 w-full bg-slate-100 rounded-full overflow-hidden">
+                                    <div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: pct + "%" }}></div>
+                                    </div>
+                                </div>
+                                );
+                            })}
+                        </div>
+                        </div>
+                    </div>
+                    )}
+
+                    {((!isManager) || (isManager && activeTab === 'form')) && (
+                    <div className="max-w-3xl mx-auto animate-in slide-in-from-bottom-8">
+                        <header className="text-center mb-10">
+                        <h2 className={"text-4xl font-black mb-4 " + (isManager ? "text-emerald-900" : "text-blue-900")}>新增試做案</h2>
+                        <p className="text-slate-500 font-medium">同步儲存於雲端，主管端可即時查看</p>
+                        </header>
+                        <div className="bg-white p-10 rounded-[3rem] shadow-2xl border-t-[12px] border-blue-600">
+                        <form onSubmit={handleAddCase} className="space-y-8">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                            <div className="space-y-3">
+                                <label className="text-sm font-black text-slate-700">負責業務 *</label>
+                                <select name="sales" className="professional-select">
+                                <option value="">選擇人員</option>
+                                {Object.keys(salesTargets).map(function(n) { return <option key={n} value={n}>{n}</option>; })}
+                                </select>
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-sm font-black text-slate-700">案件狀態 *</label>
+                                <select name="status" className="professional-select">
+                                <option value="追蹤中">🟡 追蹤中</option>
+                                <option value="已試做">🔵 已試做 (計入KPI)</option>
+                                <option value="已成交">🟢 已成交 (計入KPI)</option>
+                                </select>
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-sm font-black text-slate-700">客戶名稱 *</label>
+                                <input name="client" className="professional-input" placeholder="公司名稱" />
+                            </div>
+                            <div className="space-y-3">
+                                <label className="text-sm font-black text-slate-700">日期 *</label>
+                                <input name="date" type="date" className="professional-input" />
+                            </div>
+                            <div className="md:col-span-2 space-y-3">
+                                <label className="text-sm font-black text-slate-700">設備/產品型號 *</label>
+                                <input name="equipment" className="professional-input" placeholder="例如: RV-ET9484E, WS25" />
+                            </div>
+                            <div className="md:col-span-2 space-y-3">
+                                <label className="text-sm font-black text-slate-700">結果備註</label>
+                                <textarea name="result" rows="4" className="professional-input resize-none" placeholder="輸入詳細進度..." />
+                            </div>
+                            </div>
+                            <button type="submit" className="w-full bg-blue-600 hover:bg-blue-500 text-white py-6 rounded-3xl font-black text-2xl shadow-xl transition-all active:scale-95 flex items-center justify-center gap-3 cursor-pointer">
+                            寫入雲端資料庫 <Database />
+                            </button>
+                        </form>
+                        </div>
+                    </div>
+                    )}
+
+                    {isManager && activeTab === 'monthly_kpi' && (
+                    <div className="max-w-5xl mx-auto animate-in fade-in">
+                        <div className="flex justify-between items-end mb-10">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-900 mb-2">當月 KPI 統計分析</h2>
+                            <p className="text-slate-500 font-medium">即時分析各業務當月目標與實際達成狀況</p>
+                        </div>
+                        <div className="flex items-center gap-4 print:hidden">
+                            <select value={viewMonth} onChange={function(e) { setViewMonth(Number(e.target.value)); }} className="bg-white border-2 border-slate-200 rounded-[1rem] px-5 py-3 font-bold outline-none cursor-pointer hover:border-blue-400 transition-colors">
+                            {[...Array(12)].map(function(_, i) { return <option key={i} value={i+1}>{i+1} 月份</option>; })}
+                            </select>
+                            <button onClick={function() { window.print(); }} className="bg-slate-900 text-white px-6 py-3.5 rounded-[1rem] font-bold flex items-center gap-2 hover:bg-slate-800 transition-all shadow-md">
+                            <Printer size={18}/> 列印
+                            </button>
+                        </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {Object.keys(salesTargets).map(function(sales) {
+                            const target = salesTargets[sales];
+                            const monthData = stats.monthlyStats[viewMonth] && stats.monthlyStats[viewMonth][sales] ? stats.monthlyStats[viewMonth][sales] : { total: 0, done: 0 };
+                            const current = monthData.done;
+                            const rate = target > 0 ? Math.min(100, (current / target) * 100) : 0;
+                            const isSuccess = current >= target;
+
+                            return (
+                            <div key={sales} className="bg-white p-8 rounded-[2rem] shadow-sm border border-slate-100 relative overflow-hidden transition-all hover:shadow-md">
+                                <div className="flex justify-between items-center mb-6">
+                                <span className="text-2xl font-black text-slate-800">{sales}</span>
+                                {isSuccess ? 
+                                    <span className="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-sm font-black flex items-center gap-1"><Check size={16}/> 達標</span> : 
+                                    <span className="bg-amber-100 text-amber-700 px-4 py-1.5 rounded-full text-sm font-black">未達標</span>
+                                }
+                                </div>
+                                <div className="flex justify-between text-base mb-3 font-black text-slate-600">
+                                <span>進度: <span className="text-blue-600">{current}</span> / {target} 件</span>
+                                <span className={isSuccess ? "text-emerald-600" : "text-slate-800"}>{rate.toFixed(0)}%</span>
+                                </div>
+                                <div className="w-full bg-slate-100 rounded-full h-5 overflow-hidden">
+                                <div className={"h-full rounded-full transition-all duration-1000 " + (isSuccess ? "bg-emerald-500" : "bg-blue-500")} style={{ width: rate + "%" }}></div>
+                                </div>
+                            </div>
+                            );
+                        })}
+                        </div>
+                    </div>
+                    )}
+
+                    {isManager && activeTab === 'annual_kpi' && (
+                    <div className="max-w-[1200px] mx-auto animate-in fade-in duration-500">
+                        <header className="flex justify-between items-center mb-10">
+                        <div>
+                            <h2 className="text-3xl font-black text-slate-900">年度績效矩陣</h2>
+                            <p className="text-slate-500 font-medium">全年度 1-12 月各業務「已試做/已成交」達標概況</p>
+                        </div>
+                        <button onClick={function() { window.print(); }} className="bg-slate-900 text-white px-6 py-3 rounded-2xl font-bold flex items-center gap-2 hover:bg-slate-800 transition-all print:hidden">
+                            <Printer size={18}/> 列印
+                        </button>
+                        </header>
+                        <div className="bg-white p-10 rounded-[2.5rem] shadow-sm border border-slate-100 overflow-x-auto">
+                            <table className="w-full text-center border-separate border-spacing-2 min-w-[900px]">
+                            <thead>
+                                <tr>
+                                <th className="p-4 text-left font-black text-slate-400 text-xs">業務</th>
