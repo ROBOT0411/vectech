@@ -2,32 +2,40 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 防止手機縮放破版 -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>設備試做管理系統 ver.05</title>
     
-    <!-- === 強制防快取標籤 (確保每次打開都是最新版) === -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
-    <meta http-equiv="Pragma" content="no-cache" />
-    <meta http-equiv="Expires" content="0" />
-    
-    <title>設備試做管理系統 ver.04</title>
-    
+    <!-- 💡 黑畫面偵測器：捕捉所有當機錯誤並顯示，避免一片黑 -->
+    <script>
+        window.onerror = function(message, source, lineno, colno, error) {
+            document.body.innerHTML = '<div style="background:#450a0a; color:#fca5a5; padding:30px; text-align:center; font-family:sans-serif; height:100vh; display:flex; flex-direction:column; justify-content:center;">' +
+                '<h2 style="font-size:24px; margin-bottom:15px; font-weight:bold;">⚠️ 系統啟動失敗</h2>' +
+                '<p style="margin-bottom:10px; line-height:1.5; font-family:monospace;">' + message + '</p>' +
+                '<p style="font-size:12px; opacity:0.7;">行數：' + lineno + '</p>' +
+                '<p style="margin-top:20px; font-size:14px; color:#fff;">請將此畫面截圖傳給開發人員，或嘗試「重新整理」網頁。</p>' +
+            '</div>';
+            return true;
+        };
+    </script>
+
     <!-- 引入 Tailwind CSS 進行專業排版 -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- 引入 Phosphor Icons (專業圖示庫) -->
     <link rel="stylesheet" type="text/css" href="https://unpkg.com/@phosphor-icons/web@2.1.1/src/regular/style.css" />
     
-    <!-- 引入 React 核心框架 -->
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- ⚡ 改用更穩定、更快速的亞洲 CDN 載入 React 核心 -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
     
     <!-- 引入 Firebase 雲端資料庫模組 -->
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.11.1/firebase-firestore-compat.js"></script>
     
-    <!-- 引入 Babel 編譯器 -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- 引入 Babel 編譯器 (同樣改用穩定節點) -->
+    <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.10/babel.min.js"></script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;700;900&display=swap');
@@ -49,7 +57,7 @@
 <body>
     <div id="root"></div>
 
-    <script type="text/babel">
+    <script type="text/babel" data-presets="react,env">
         // === React Hooks ===
         const { useState, useMemo, useEffect } = React;
 
@@ -82,7 +90,7 @@
         const Target = p => <Icon name="ph-target" {...p} />;
         const KeyRound = p => <Icon name="ph-key" {...p} />;
 
-        // === Firebase 初始化 (您的專屬資料庫) ===
+        // === Firebase 初始化 ===
         const firebaseConfig = {
             apiKey: "AIzaSyDrVI2lIVebjunYgIoYOmQp1Kh2kngXzW8",
             authDomain: "robot-ai-d531d.firebaseapp.com",
@@ -125,11 +133,11 @@
             const [exportMonth, setExportMonth] = useState('all');
             const [viewMonth, setViewMonth] = useState(new Date().getMonth() + 1);
 
-            // 1. 強制直連：繞過所有手機瀏覽器的阻擋，直接抓取資料庫
+            // 1. 強制直連：繞過所有手機瀏覽器的阻擋
             useEffect(() => {
                 setCloudStatus('讀取資料庫中...');
 
-                // 備用登入（即使失敗也不影響資料庫讀寫）
+                // 備用登入（失敗也不影響）
                 auth.signInAnonymously().catch(() => console.log("匿名登入略過，強制使用規則直連"));
 
                 const docRef = db.collection('salesSystem').doc('mainData');
@@ -143,7 +151,7 @@
                     } else {
                         docRef.set({ cases: [], salesTargets: defaultSalesTargets, adminPassword: '8888' });
                     }
-                    setCloudStatus('🟢 雲端已同步 (ver.04)');
+                    setCloudStatus('🟢 雲端已同步 (ver.05)');
                     setIsLoading(false);
                 }, (err) => {
                     console.error("Listen Error:", err);
@@ -154,13 +162,13 @@
                 return () => unsubscribeDB();
             }, []);
 
-            // ☁️ 雲端寫入：強制寫入
+            // ☁️ 雲端寫入
             const syncToCloud = async (newData) => {
                 setCloudStatus('⏳ 寫入雲端中...');
                 try {
                     const docRef = db.collection('salesSystem').doc('mainData');
                     await docRef.set(newData, { merge: true });
-                    setCloudStatus('🟢 雲端已同步 (ver.04)');
+                    setCloudStatus('🟢 雲端已同步 (ver.05)');
                     return true;
                 } catch (err) {
                     console.error("Write Error:", err);
@@ -217,14 +225,18 @@
                 }
             };
 
-            // ⚠️ 手動防呆驗證
             const handleAddCase = async (e) => {
                 e.preventDefault();
                 try {
                     const fd = new FormData(e.target);
                     const sales = fd.get('sales');
-                    const client = fd.get('client')?.trim();
-                    const equipment = fd.get('equipment')?.trim();
+                    
+                    // 防呆：去除頭尾空白，避免舊手機崩潰
+                    const clientVal = fd.get('client');
+                    const equipmentVal = fd.get('equipment');
+                    const client = clientVal ? clientVal.trim() : '';
+                    const equipment = equipmentVal ? equipmentVal.trim() : '';
+                    
                     const date = fd.get('date');
                     const status = fd.get('status');
 
@@ -287,7 +299,8 @@
 
                 const BOM = '\uFEFF';
                 const header = "月份,業務,客戶,設備,日期,狀態,結果\n";
-                const rows = list.map(c => `${c.month}月,${c.sales},${c.client},"${c.equipment}",${c.date},${c.status},"${c.result.replace(/\n/g, ' ')}"`).join('\n');
+                // 確保 result 有值才執行取代，防當機
+                const rows = list.map(c => `${c.month}月,${c.sales},${c.client},"${c.equipment}",${c.date},${c.status},"${(c.result || '').replace(/\n/g, ' ')}"`).join('\n');
                 const blob = new Blob([BOM + header + rows], { type: 'text/csv;charset=utf-8;' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -305,7 +318,7 @@
                     <div className="bg-black/40 p-4 rounded-xl mb-6 text-left border border-white/5">
                     <p className="text-red-300 font-mono text-sm leading-relaxed whitespace-pre-wrap">{errorMsg}</p>
                     </div>
-                    <button onClick={() => window.location.reload()} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg">我已經修改好了，重新載入</button>
+                    <button onClick={() => window.location.reload()} className="w-full bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold transition-all shadow-lg">重新載入</button>
                 </div>
                 </div>
             );
@@ -329,7 +342,7 @@
                         <Wifi className="text-emerald-400 animate-pulse" size={16} />
                         <span className="text-emerald-400 text-xs font-black tracking-widest uppercase">{cloudStatus}</span>
                     </div>
-                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.04</span></h1>
+                    <h1 className="text-4xl md:text-6xl font-black text-white tracking-tighter mb-4">設備試做管理系統 <span className="text-2xl text-emerald-400 align-top">ver.05</span></h1>
                     <p className="text-slate-400 text-lg md:text-xl font-medium tracking-wide">Vectech Automation Management Portal</p>
                     </div>
 
@@ -374,5 +387,4 @@
             return (
                 <div className="min-h-screen bg-[#f8fafc] flex flex-col md:flex-row font-sans">
                 {/* 側邊欄 */}
-                <nav className={`w-full md:w-72 text-white flex flex-col shrink-0 z-20 ${isManager ? 'bg-[#0f172a]' : 'bg-[#1e3a8a]'} transition-colors duration-500 print:hidden`}>
-                    <div className="p-8
+                <nav className={`w-full md:w-72 text-white flex flex-col shrink-0 z-20 ${isManager ? 'bg-[#0f17
